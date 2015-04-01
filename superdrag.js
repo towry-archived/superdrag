@@ -1,9 +1,12 @@
-// Copyright 2015 Towry Wang. All rights reserved.
-// Use of this source code is governed by a BSD-style license that
-// can be found in the LICENSE file.
+/*! 
+ * Copyright (c) 2015, Towry Wang (http://towry.me). 
+ * All rights reserved.
+ *
+ * @license MIT (http://towry.me/mit-license/)
+ */
 
 /**
- * @fileoverview Enable html element to be draggaed.
+ * @fileoverview Superdrag make the best sortable/switchable/draggable.
  */
 
 (function (name, context, definition) {
@@ -82,6 +85,14 @@ if (!window.cancelAnimationFrame) {
     } )();
 }
 
+function extend (o1, o2) {
+    for (var i in o2) {
+        o1[i] = o2[i];
+    }
+
+    return o1;
+}
+
 /**
  * EventListener wrapper
  */
@@ -102,6 +113,8 @@ function listener (fn) {
         if (!ex.target && ex.srcElement) {
             ex.target = ex.srcElement;
         }
+
+        ex._superdrag = true;
 
         fn.call(this, ex);
     }
@@ -227,6 +240,12 @@ Superdrag.prototype = {
         var style;
         var zIndex;
 
+        self.options = extend({}, options);
+
+        if (self.options['sort']) {
+            self.elements = Array.prototype.slice.call(elements);
+        }
+
         for (var i = 0, ii = elements.length; i < ii; i++) {
             style = getStyle(elements[i]);
             zIndex = style.zIndex;
@@ -240,18 +259,22 @@ Superdrag.prototype = {
                 _handle = [elements[i]];
             }
 
+            if (self.options['sort'] && dndSupported) {
+                addEventListener(elements[i], 'dragenter', self.elementDragEnterHandler());
+            }
+
             for (var j = 0, jj = _handle.length; j < jj; j++) {
-                addEventListener(_handle[j], 'mousedown', function (n) {
+                addEventListener(_handle[j], 'mousedown', function (ele) {
                     return listener(function (e) {
                         if (e.stopPropagation) {
                             e.stopPropagation();
                         } else {
                             e.cancelBubble = true;
-                        }
+                        } 
 
-                        self.initMouseMove(elements[n]);
+                        self.initMouseMove(ele);
                     })
-                }.call(this, i));
+                }.call(this, elements[i]));
             }
         }
 
@@ -282,6 +305,7 @@ Superdrag.prototype = {
                     addEventListener(ele, 'dragend', self);
                     addEventListener(ele, 'dragstart', self);
                     addEventListener(doc, 'dragover', self);
+                    addEventListener(ele, 'drop', self);
                 }
 
                 else {
@@ -404,11 +428,61 @@ Superdrag.prototype = {
         }
     },
 
+    ondragendWithSort: function (e) {
+        this.dragItem.removeAttribute('style');
+        var style = this.dragItem.getAttribute('data-style');
+        style && this.dragItem.setAttribute('style', style);
+        
+        if (!this.beneath) return;
+
+        var found = -1;
+        var before = false;
+        var dragIndex = -1;
+        var tmp;
+
+        for (var i = 0, ii = this.elements.length; i < ii; i++) {
+            if (this.elements[i] == this.dragItem ) {
+                dragIndex = i;
+                if (found == -1) {
+                    before = true;
+                }
+            }
+
+            if (this.elements[i] == this.beneath) {
+                found = i;
+            }
+
+            if (dragIndex !== -1 && found !== -1) {
+                break;
+            }
+        }
+
+        if (before) {
+            // insert after beneath
+            this.elements.splice(found+1, 0, this.dragItem);
+            this.elements.splice(dragIndex, 1);
+            this.dragItem.parentNode.removeChild(this.dragItem);
+            this.beneath.parentNode.insertBefore(this.dragItem, this.beneath.nextSibling);
+        } else {
+            // insert before beneath
+            this.elements.splice(dragIndex, 1);
+            this.elements.splice(found, 0, this.dragItem);
+
+            this.dragItem.parentNode.removeChild(this.dragItem);
+            this.beneath.parentNode.insertBefore(this.dragItem, this.beneath);
+        }
+
+        // debug
+        window.elements = this.elements;
+    },
+
     ondragend: function (e) {
         if (this.dragItem && dndSupported) {
             this.dragItem.removeAttribute('draggable');
             // remove dragover event from doc
             removeEventListener(doc, 'dragover', this);
+            removeEventListener(this.dragItem, 'dragstart', this);
+            removeEventListener(this.dragItem, 'dragend', this);
         }
 
         this.setPosition();
@@ -416,6 +490,10 @@ Superdrag.prototype = {
         this.startPoint = {x: 0, y: 0};
         this.dragPoint = {x: 0, y: 0};
         this.isDragging = false;
+
+        if (this.options['sort']) {
+            this.ondragendWithSort(e);
+        }
 
         if (!dndSupported) {
             this.dragItem.removeAttribute('data-style');
@@ -434,6 +512,30 @@ Superdrag.prototype = {
         if (!this.dragItem) return;
 
         this.dragPoint = {x: e.pageX, y: e.pageY};
+    },
+
+    _elementDragEnterHandler: null,
+    elementDragEnterHandler: function () {
+        var self = this;
+
+        this._elementDragEnterHandler = this._elementDragEnterHandler || listener(function (e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            var target = e.currentTarget;
+            self.beneath = null;
+
+            if (target && e._superdrag) {
+                self.beneath = target;
+            }
+
+            if (target == self.dragItem) {
+                self.beneath = null;
+            }
+        });
+
+        return this._elementDragEnterHandler;
     },
 
     ondragover: function (e) {
