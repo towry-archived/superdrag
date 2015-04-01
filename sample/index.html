@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>superdrag</title>
+	<link rel="stylesheet" href="all.css">
+</head>
+<body>
+	<div id="dev-content">
+		<div class="box-tiles">
+			<div class="box" data-index="1">
+				<h2 class="title"></h2>
+				<div class="preview"><img src="" alt=""></div>
+			</div>
+			<div class="box" data-index="2">
+				<h2 class="title"></h2>
+				<div class="preview"><img src="" alt=""></div>
+			</div>
+			<div class="box" data-index="3">
+				<h2 class="title"></h2>
+				<div class="preview"><img src="" alt=""></div>
+			</div>
+			<div class="box" data-index="4">
+				<h2 class="title"></h2>
+				<div class="preview"><img src="" alt=""></div>
+			</div>
+			<div class="box" data-index="5">
+				<h2 class="title"></h2>
+				<div class="preview"><img src="" alt=""></div>
+			</div>
+			<div class="box" data-index="6">
+				<h2 class="title"></h2>
+				<div class="preview"><img src="" alt=""></div>
+			</div>
+			<div class="box" data-index="7">
+				<h2 class="title"></h2>
+				<div class="preview"><img src="" alt=""></div>
+			</div>
+			<div class="box" data-index="8">
+				<h2 class="title"></h2>
+				<div class="preview"><img src="" alt=""></div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+	function setupImages (fn) {
+		var xhr = new XMLHttpRequest();
+		xhr.open('GET', './thumb.json', true);
+		xhr.onreadystatechange = function () {
+			if (xhr.readyState == 4) {
+				if (xhr.status == 200) {
+					fn(xhr.responseText);
+				} else {
+					fn(new Error("Nothing"));
+				}
+			}
+		}
+
+		xhr.send(null);
+	}
+
+	function imageCallback (data) {
+		if (data instanceof Error) {
+			throw data;
+		}
+
+		data = JSON.parse(data);
+		
+		var images = document.querySelectorAll('img');
+		for (var i = 0, ii = images.length; i < ii; i++) {
+			var img = images[i];
+
+			img.setAttribute('src', data[i+1]);
+		}
+	}
+
+	function setupTitle (fn) {
+		var xhr = new XMLHttpRequest();
+		xhr.open('GET', './title.json', true);
+		xhr.onreadystatechange = function () {
+			if (xhr.readyState == 4) {
+				if (xhr.status == 200) {
+					fn(xhr.responseText);
+				} else {
+					fn(new Error("Nothing"));
+				}
+			}
+		}
+
+		xhr.send(null);
+	}
+
+	function titleCallback (data) {
+		if (data instanceof Error) {
+			throw data;
+		}
+
+		data = JSON.parse(data);
+
+		var h2s = document.querySelectorAll('h2');
+		for (var i = 0, ii = h2s.length; i < ii; i++) {
+			var h2 = h2s[i];
+
+			if ("innerText" in h2) {
+				h2.innerText = data[i+1];
+			} else if ("textContent" in h2) {
+				h2.textContent = data[i+1];
+			}
+		}
+	}
+
+	setupImages(imageCallback);
+	setupTitle(titleCallback);
+	</script>
+
+	<script src="../superdrag.js"></script>
+	<script>
+		superdrag.drag(document.getElementsByClassName('box'), {
+			handle: ''
+		});
+	</script>
+</body>
+</html>
