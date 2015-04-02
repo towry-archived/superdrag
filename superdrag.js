@@ -242,7 +242,11 @@ Superdrag.prototype = {
 
         self.options = extend({}, options);
 
-        if (self.options['sort']) {
+        if (self.options['switch']) {
+            dndSupported = false;
+        }
+
+        if (self.options['sort'] || self.options['swap']) {
             self.elements = Array.prototype.slice.call(elements);
         }
 
@@ -259,7 +263,7 @@ Superdrag.prototype = {
                 _handle = [elements[i]];
             }
 
-            if (self.options['sort'] && dndSupported) {
+            if (self.options['sort'] && dndSupported || self.options['swap'] && dndSupported) {
                 addEventListener(elements[i], 'dragenter', self.elementDragEnterHandler());
             }
 
@@ -428,6 +432,42 @@ Superdrag.prototype = {
         }
     },
 
+    ondragendWithSwap: function (e) {
+        this.dragItem.removeAttribute('style');
+        var style = this.dragItem.getAttribute('data-style');
+        style && this.dragItem.setAttribute('style', style);
+
+        if (!this.beneath) return;
+
+        var dragIndex = -1;
+        var found = -1;
+
+        for (var i = 0, ii = this.elements.length; i < ii; i++) {
+            if (this.elements[i] == this.dragItem) {
+                dragIndex = i;
+            }
+
+            if (this.elements[i] == this.beneath) {
+                found = i;
+            }
+
+            if (dragIndex !== -1 && found !== -1) {
+                break;
+            }
+        }
+        var tmp;
+
+        tmp = this.elements[dragIndex];
+        this.elements[dragIndex] = this.elements[found];
+        this.elements[found] = tmp;
+
+        tmp = doc.createElement('DIV');
+        this.beneath.parentNode.insertBefore(tmp, this.beneath);
+        this.dragItem.parentNode.insertBefore(this.beneath, this.dragItem);
+        tmp.parentNode.insertBefore(this.dragItem, tmp);
+        tmp.parentNode.removeChild(tmp);
+    },
+
     ondragendWithSort: function (e) {
         this.dragItem.removeAttribute('style');
         var style = this.dragItem.getAttribute('data-style');
@@ -493,6 +533,8 @@ Superdrag.prototype = {
 
         if (this.options['sort']) {
             this.ondragendWithSort(e);
+        } else if (this.options['swap']) {
+            this.ondragendWithSwap(e);
         }
 
         if (!dndSupported) {
